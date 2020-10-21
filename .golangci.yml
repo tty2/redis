@@ -19,3 +19,4 @@ linters:
     - exhaustive
     - gofumpt
     - nestif
+    - nlreturn
