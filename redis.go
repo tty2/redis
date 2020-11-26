@@ -2,14 +2,15 @@ package redis
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/go-redis/redis/v8/internal"
 	"github.com/go-redis/redis/v8/internal/pool"
 	"github.com/go-redis/redis/v8/internal/proto"
-	"go.opentelemetry.io/otel/api/trace"
 	"go.opentelemetry.io/otel/label"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Nil reply returned by Redis when key does not exist.
@@ -225,12 +226,12 @@ func (c *baseClient) _getConn(ctx context.Context) (*pool.Conn, error) {
 		return cn, nil
 	}
 
-	err = internal.WithSpan(ctx, "init_conn", func(ctx context.Context, span trace.Span) error {
+	err = internal.WithSpan(ctx, "redis.init_conn", func(ctx context.Context, span trace.Span) error {
 		return c.initConn(ctx, cn)
 	})
 	if err != nil {
 		c.connPool.Remove(ctx, cn, err)
-		if err := internal.Unwrap(err); err != nil {
+		if err := errors.Unwrap(err); err != nil {
 			return nil, err
 		}
 		return nil, err
@@ -299,7 +300,7 @@ func (c *baseClient) releaseConn(ctx context.Context, cn *pool.Conn, err error) 
 func (c *baseClient) withConn(
 	ctx context.Context, fn func(context.Context, *pool.Conn) error,
 ) error {
-	return internal.WithSpan(ctx, "with_conn", func(ctx context.Context, span trace.Span) error {
+	return internal.WithSpan(ctx, "redis.with_conn", func(ctx context.Context, span trace.Span) error {
 		cn, err := c.getConn(ctx)
 		if err != nil {
 			return err
@@ -326,7 +327,7 @@ func (c *baseClient) process(ctx context.Context, cmd Cmder) error {
 		attempt := attempt
 
 		var retry bool
-		err := internal.WithSpan(ctx, "process", func(ctx context.Context, span trace.Span) error {
+		err := internal.WithSpan(ctx, "redis.process", func(ctx context.Context, span trace.Span) error {
 			if attempt > 0 {
 				if err := internal.Sleep(ctx, c.retryBackoff(attempt)); err != nil {
 					return err
